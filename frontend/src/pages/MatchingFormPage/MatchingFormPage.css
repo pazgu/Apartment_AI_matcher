@@ -12,6 +12,58 @@
   align-items: flex-start;
 }
 
+.ai-preferences-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #eef9fc;
+  border: 1px solid #b9e8f3;
+  border-radius: 8px;
+}
+
+.ai-preferences-section label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ai-preferences-section textarea {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.ai-preferences-button {
+  margin-top: 10px;
+  padding: 8px 14px;
+  background-color: #0787a8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ai-preferences-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.ai-preferences-error,
+.ai-preferences-success {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.ai-preferences-error {
+  color: #b42318;
+}
+
+.ai-preferences-success {
+  color: #18794e;
+}
+
 .matching-form label {
   margin-bottom: 15px;
   width: 100%;

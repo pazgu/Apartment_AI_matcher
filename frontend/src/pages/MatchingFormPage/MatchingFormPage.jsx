@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 import "./MatchingFormPage.css";
@@ -24,6 +24,11 @@ const Matching = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [naturalLanguageRequest, setNaturalLanguageRequest] = useState("");
+  const [aiFillLoading, setAiFillLoading] = useState(false);
+  const [aiFillError, setAiFillError] = useState("");
+  const [aiFillSuccess, setAiFillSuccess] = useState("");
+  const preserveAiPriceRangeRef = useRef(false);
 
   // State for the errors
   const [floorError, setFloorError] = useState("");
@@ -35,6 +40,10 @@ const Matching = () => {
   };
 
   useEffect(() => {
+    if (preserveAiPriceRangeRef.current) {
+      preserveAiPriceRangeRef.current = false;
+      return;
+    }
     if (rentOrSale === "rent") {
       setPriceRange([500, 50000]); // Range for rent
     } else {
@@ -73,6 +82,74 @@ const Matching = () => {
 
   const handleSizeRangeChange = (values) => {
     setSizeRange(values);
+  };
+
+  const handleAiFill = async () => {
+    if (!naturalLanguageRequest.trim()) {
+      setAiFillError("Please describe the apartment you are looking for.");
+      setAiFillSuccess("");
+      return;
+    }
+
+    setAiFillLoading(true);
+    setAiFillError("");
+    setAiFillSuccess("");
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/apartments/extract-preferences",
+        { text: naturalLanguageRequest, rentOrSale },
+      );
+      const extracted = response.data.preferences || {};
+      const extractedFields = Object.keys(extracted);
+
+      if (extractedFields.length === 0) {
+        throw new Error("No supported preferences were found.");
+      }
+
+      if (extracted.rentOrSale) {
+        const hasPriceRange =
+          extracted.minPrice !== undefined || extracted.maxPrice !== undefined;
+        if (hasPriceRange) preserveAiPriceRangeRef.current = true;
+        setRentOrSale(extracted.rentOrSale);
+      }
+      if (extracted.floor !== undefined) {
+        setFloor(extracted.floor);
+        setFloorError("");
+      }
+      if (extracted.beds !== undefined) {
+        setBeds(extracted.beds);
+        setBedsError("");
+      }
+      if (
+        extracted.minPrice !== undefined ||
+        extracted.maxPrice !== undefined
+      ) {
+        setPriceRange([
+          extracted.minPrice ?? priceRange[0],
+          extracted.maxPrice ?? priceRange[1],
+        ]);
+      }
+      if (extracted.minSize !== undefined || extracted.maxSize !== undefined) {
+        setSizeRange([
+          extracted.minSize ?? sizeRange[0],
+          extracted.maxSize ?? sizeRange[1],
+        ]);
+      }
+      if (extracted.tags) {
+        setTags((currentTags) => ({ ...currentTags, ...extracted.tags }));
+      }
+      setAiFillSuccess(
+        "Preferences were filled. Please review them before submitting.",
+      );
+    } catch (error) {
+      setAiFillError(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to fill preferences right now. Please try again.",
+      );
+    } finally {
+      setAiFillLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -125,6 +202,30 @@ const Matching = () => {
         ביותר איזו דירה היא המושלמת בשבילך!
       </p>
       <br />
+      <div className="ai-preferences-section">
+        <label htmlFor="natural-language-request">
+          תארו בקצרה איזו דירה אתם מחפשים (אופציונלי):
+        </label>
+        <textarea
+          id="natural-language-request"
+          value={naturalLanguageRequest}
+          onChange={(e) => setNaturalLanguageRequest(e.target.value)}
+          placeholder="לדוגמה: אני מחפש דירת 3 חדרים להשכרה עד 7,000 ש״ח"
+          rows="3"
+        />
+        <button
+          type="button"
+          className="ai-preferences-button"
+          onClick={handleAiFill}
+          disabled={aiFillLoading}
+        >
+          {aiFillLoading ? "ממלא את ההעדפות..." : "מלא העדפות בעזרת AI"}
+        </button>
+        {aiFillError && <p className="ai-preferences-error">{aiFillError}</p>}
+        {aiFillSuccess && (
+          <p className="ai-preferences-success">{aiFillSuccess}</p>
+        )}
+      </div>
       <form className="matching-form" onSubmit={handleSubmit}>
         <label>
           סוג הדירה:

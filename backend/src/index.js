@@ -1,3 +1,6 @@
+const dns = require("node:dns");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
 const express = require("express");
 const app = express();
 const PORT = 5000;
@@ -15,7 +18,7 @@ async function main() {
   app.use(
     cors({
       origin: "http://localhost:3000",
-    })
+    }),
   );
   app.use(bodyParser.json());
 

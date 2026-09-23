@@ -4,10 +4,24 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import pairwise_distances
 from sklearn.manifold import TSNE
+import inspect
 import pickle
 
 import warnings
 warnings.filterwarnings('ignore')
+
+
+def load_pickle(path):
+    """Load artifacts saved by scikit-learn 1.5 with newer versions too."""
+    import sklearn.compose._column_transformer as column_transformer
+
+    if not hasattr(column_transformer, '_RemainderColsList'):
+        column_transformer._RemainderColsList = type(
+            '_RemainderColsList', (list,), {}
+        )
+
+    with open(path, 'rb') as artifact:
+        return pickle.load(artifact)
 
 
 class DataReader:
@@ -49,7 +63,7 @@ class DataScaler:
         """
         Load a pre-trained scaler to normalize the data.
         """
-        self.scaler = pickle.load(open(scaler_path, "rb"))
+        self.scaler = load_pickle(scaler_path)
     
     def scale_data(self, df):
         """
@@ -69,10 +83,17 @@ class ClusteringModel:
         """
         Load pre-trained t-SNE and KMeans models for dimensionality reduction and clustering.
         """
-        with open(model_path, 'rb') as f:
-            clustering = pickle.load(f)
-            self.tsne = TSNE(n_components=2, perplexity=30, learning_rate=200, n_iter=1000)
-            self.kmeans = clustering['kmeans']
+        clustering = load_pickle(model_path)
+        tsne_iterations = {'max_iter': 1000}
+        if 'max_iter' not in inspect.signature(TSNE).parameters:
+            tsne_iterations = {'n_iter': 1000}
+        self.tsne = TSNE(
+            n_components=2,
+            perplexity=30,
+            learning_rate=200,
+            **tsne_iterations
+        )
+        self.kmeans = clustering['kmeans']
     
     def run_clustering(self, scaled_df, scaled_user):
         """

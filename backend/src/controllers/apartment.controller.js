@@ -3,10 +3,153 @@ const {
   RentalApartment,
   SaleApartment,
 } = require("../models/apartment.model.");
-const OpenAI = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+const preferenceTagKeys = [
+  "school",
+  "religious",
+  "secular",
+  "families",
+  "parks",
+  "light_trail",
+  "quiet_street",
+];
+
+function sanitizeExtractedPreferences(value, currentRentOrSale) {
+  if (!isPlainObject(value)) return null;
+
+  const rentOrSale =
+    value.rentOrSale === "rent" || value.rentOrSale === "sale"
+      ? value.rentOrSale
+      : undefined;
+  const effectiveRentOrSale = rentOrSale || currentRentOrSale;
+  const priceMinimum = effectiveRentOrSale === "rent" ? 500 : 10000;
+  const priceMaximum = effectiveRentOrSale === "rent" ? 50000 : 50000000;
+  const sanitized = {};
+
+  if (rentOrSale) sanitized.rentOrSale = rentOrSale;
+
+  const numericFields = [
+    "floor",
+    "beds",
+    "minPrice",
+    "maxPrice",
+    "minSize",
+    "maxSize",
+  ];
+  for (const field of numericFields) {
+    if (value[field] === undefined) continue;
+    const number = Number(value[field]);
+    if (!Number.isFinite(number)) continue;
+
+    const minimum =
+      field === "floor" || field === "beds"
+        ? 0
+        : field.includes("Price")
+          ? priceMinimum
+          : 0;
+    const maximum =
+      field === "floor"
+        ? 100
+        : field === "beds"
+          ? 10
+          : field.includes("Price")
+            ? priceMaximum
+            : 10000;
+    if (number >= minimum && number <= maximum) {
+      sanitized[field] = Number.isInteger(number) ? number : number;
+    }
+  }
+
+  if (isPlainObject(value.tags)) {
+    const tags = {};
+    for (const key of preferenceTagKeys) {
+      const number = Number(value.tags[key]);
+      if (Number.isInteger(number) && number >= 1 && number <= 5) {
+        tags[key] = number;
+      }
+    }
+    if (Object.keys(tags).length > 0) sanitized.tags = tags;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
+async function extractApartmentPreferences(req, res) {
+  const { text, rentOrSale } = req.body || {};
+  if (typeof text !== "string" || !text.trim()) {
+    return res
+      .status(400)
+      .json({ message: "Please describe your apartment preferences" });
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res
+      .status(503)
+      .json({ message: "AI preference extraction is not configured" });
+  }
+
+  try {
+    const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = client.getGenerativeModel({
+      model: "gemini-3.1-flash-lite",
+      systemInstruction:
+        "Extract apartment preferences from Hebrew or English text. Return JSON only. Supported fields are rentOrSale (exactly rent or sale), floor (0-100), beds (0-10), minPrice and maxPrice (numbers), minSize and maxSize (0-10000), and tags containing only school, religious, secular, families, parks, light_trail, quiet_street with integer ratings 1-5. Return a field only when clearly stated or safely mapped to an existing option. Do not guess. Ignore unsupported requests such as city, balcony, or transportation. Omit unspecified fields. Do not include explanations or any other keys.",
+    });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: text.trim() }] }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: "application/json",
+      },
+    });
+    const responseText = result.response.text().trim();
+    if (!responseText) {
+      return res.status(502).json({ message: "AI returned no preferences" });
+    }
+
+    const extracted = sanitizeExtractedPreferences(
+      JSON.parse(responseText),
+      rentOrSale === "rent" || rentOrSale === "sale" ? rentOrSale : "sale",
+    );
+    if (!extracted) {
+      return res
+        .status(422)
+        .json({ message: "No supported preferences were found" });
+    }
+    return res.status(200).json({ success: true, preferences: extracted });
+  } catch (error) {
+    console.error("Error extracting apartment preferences:", error);
+    const errorMessage = String(error?.message || "");
+    if (
+      /API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({ message: "AI preference extraction is not configured" });
+    }
+    if (
+      /429|rate limit|quota|temporarily unavailable|503/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({
+          message: "AI preference extraction is temporarily unavailable",
+        });
+    }
+    if (error instanceof SyntaxError) {
+      return res
+        .status(502)
+        .json({ message: "AI returned invalid preference data" });
+    }
+    return res
+      .status(502)
+      .json({ message: "Unable to extract apartment preferences" });
+  }
 }
 
 async function explainApartmentMatch(req, res) {
@@ -34,7 +177,7 @@ async function explainApartmentMatch(req, res) {
       return res.status(404).json({ message: "Apartment not found" });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return res
         .status(503)
         .json({ message: "AI explanation service is not configured" });
@@ -62,25 +205,29 @@ async function explainApartmentMatch(req, res) {
         })),
     };
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const completion = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "אתה מסביר התאמת דירות בעברית. החזר JSON בלבד עם strengths (מערך של בדיוק 2 מחרוזות קצרות) ו-tradeoff (מחרוזת קצרה או null). השתמש רק בנתונים שסופקו. אל תמציא מידע על בטיחות, נסיעות, בתי ספר, מרחקים, איכות שכונה או מתקנים. אל תשתמש בשפה שיווקית מוגזמת. החזר tradeoff רק אם הוא נתמך ישירות בנתונים.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({ apartment: apartmentData, preferences }),
-        },
-      ],
+    const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = client.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      systemInstruction:
+        "אתה מסביר התאמת דירות בעברית. החזר JSON בלבד עם strengths (מערך של בדיוק 2 מחרוזות קצרות) ו-tradeoff (מחרוזת קצרה או null). השתמש רק בנתונים שסופקו. אל תמציא מידע על בטיחות, נסיעות, בתי ספר, מרחקים, איכות שכונה או מתקנים. אל תשתמש בשפה שיווקית מוגזמת. החזר tradeoff רק אם הוא נתמך ישירות בנתונים.",
     });
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: JSON.stringify({ apartment: apartmentData, preferences }) },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const parsed = JSON.parse(result.response.text() || "{}");
     if (!Array.isArray(parsed.strengths) || parsed.strengths.length < 2) {
       return res
         .status(502)
@@ -99,8 +246,11 @@ async function explainApartmentMatch(req, res) {
     });
   } catch (error) {
     console.error("Error explaining apartment match:", error);
+    const errorMessage = String(error?.message || "");
+    const isConfigurationError =
+      /API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage);
     return res
-      .status(502)
+      .status(isConfigurationError ? 503 : 502)
       .json({ message: "Unable to generate apartment explanation" });
   }
 }
@@ -293,11 +443,19 @@ async function postUserMatchApartmentsForm(req, res) {
 
     // Choose model based on rent or sale
     let ApartmentModel;
+    const pythonCommand =
+      process.env.PYTHON_EXECUTABLE ||
+      (process.platform === "win32" ? "py" : "python3");
+    const pythonCommandArgs =
+      process.platform === "win32" && !process.env.PYTHON_EXECUTABLE
+        ? ["-3"]
+        : [];
     let pythonProcess;
 
     if (rentOrSale === "rent") {
       ApartmentModel = RentalApartment;
-      pythonProcess = spawn("python", [
+      pythonProcess = spawn(pythonCommand, [
+        ...pythonCommandArgs,
         "data/ML_modules/ApartmentMatcherAlgorithm.py",
         apartment_df_path_to_rent,
         JSON.stringify(user_prefs),
@@ -306,7 +464,8 @@ async function postUserMatchApartmentsForm(req, res) {
       ]);
     } else {
       ApartmentModel = SaleApartment;
-      pythonProcess = spawn("python", [
+      pythonProcess = spawn(pythonCommand, [
+        ...pythonCommandArgs,
         "data/ML_modules/ApartmentMatcherAlgorithm.py",
         apartment_df_path_to_sale,
         JSON.stringify(user_prefs),
@@ -322,7 +481,28 @@ async function postUserMatchApartmentsForm(req, res) {
       result += data.toString();
     });
 
+    pythonProcess.on("error", (error) => {
+      console.error("Unable to start Python matcher:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message:
+            "Python is not installed or is not configured. Set PYTHON_EXECUTABLE to a Python 3 executable.",
+        });
+      }
+    });
+
     pythonProcess.on("close", async (code) => {
+      if (res.headersSent) return;
+
+      if (code !== 0 || !result.trim()) {
+        console.error(`Python matcher exited with code ${code}`);
+        return res.status(500).json({
+          success: false,
+          message: "The apartment matching process failed",
+        });
+      }
+
       try {
         const matchedApartments = JSON.parse(result.trim());
 
@@ -383,4 +563,5 @@ module.exports = {
   postUserMatchApartmentsForm,
   getApartmentByIdAll,
   explainApartmentMatch,
+  extractApartmentPreferences,
 };

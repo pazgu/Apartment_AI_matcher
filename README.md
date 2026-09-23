@@ -1,4 +1,4 @@
-# Apartment Matcher 🏠🔍
+# Apartment AI Matcher 🏠🔍
 
 A web application that allows users to filter apartments for buying or renting and utilizes a Machine Learning model to find the best apartments based on user preferences.
 
@@ -24,6 +24,8 @@ A web application that allows users to filter apartments for buying or renting a
 - Interactive UI: User-friendly interface built with React for seamless navigation.
 
 - Data-Driven Insights: Apartments data scraped and processed from madlan.co.il.
+
+- AI Match Explanations: Recommended apartments can show a short, Hebrew explanation based on your submitted preferences and the apartment's available data. The AI request runs only after clicking the explanation button.
 
 <a name="installation"/></a>
 
@@ -63,6 +65,16 @@ Note: Ensure you have npm, pip, and bash installed on your system.
 - Get recommendations: Fill out the form to receive personalized apartment recommendations.
 
 - Browse matches: Explore the top 20 apartment matches tailored to your preferences.
+
+### AI match explanations
+
+The explanation feature is available on recommended apartment cards only and runs after the user clicks the button. Configure these backend environment variables in `backend/src/.env`:
+
+```
+MONGO_URI=your-mongodb-connection-string
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
 
 <a name="technologies"/></a>
 

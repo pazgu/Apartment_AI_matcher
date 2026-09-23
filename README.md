@@ -1,105 +1,137 @@
-# Apartment AI Matcher 🏠🔍
+# Apartment AI Matcher
 
-A web application that allows users to filter apartments for buying or renting and utilizes a Machine Learning model to find the best apartments based on user preferences.
+Apartment AI Matcher helps users find apartments for rent or sale, compare recommendations, and ask focused questions about individual listings. It combines a React interface, an Express/MongoDB backend, and a Python recommendation pipeline.
 
-![<img src="frontend/src/assets/IdeaImg.JPG" width="25" height="25"/>](frontend/src/assets/IdeaImg.JPG)
+## Highlights
 
-## Table of Contents
+- Search and browse apartment listings.
+- Filter apartments by transaction type, floor, bedrooms, price, size, and lifestyle priorities.
+- Receive up to 20 machine-learning recommendations based on the submitted preferences.
+- Review and edit preferences before running a match.
 
-1. [Features](#features)
-2. [Installation](#installation)
-3. [Usage](#usage)
-4. [Technologies Used](#technologies)
-5. [Machine Learning Explanation](#ml)
+## AI Features
 
-<a name="features"/></a>
+The application includes three focused AI features powered by Google Gemini. They are on-demand: no AI request is made until the user starts the relevant action.
 
-## Features ✨
+### 1. Fill Preferences With AI
 
-</a>
-* Apartment Filtering: Search and filter apartments for sale or rent in Tel Aviv, Jerusalem, and Haifa.
+On the apartment-matching form, users can describe what they want in Hebrew or English. Gemini extracts only values supported by the existing form, such as:
 
-- Machine Learning Recommendations: Get personalized apartment recommendations based on your preferences.
+- Rent or sale.
+- Floor and number of bedrooms.
+- Minimum and maximum price.
+- Minimum and maximum apartment size.
+- Lifestyle priorities such as schools, parks, quiet streets, families, religious suitability, secular suitability, and light-rail proximity.
 
-- Interactive UI: User-friendly interface built with React for seamless navigation.
+The extracted values populate the existing form. The form is not submitted automatically, so users can review and edit the values before matching.
 
-- Data-Driven Insights: Apartments data scraped and processed from madlan.co.il.
+### 2. Why Does This Apartment Match Me?
 
-- AI Match Explanations: Recommended apartments can show a short, Hebrew explanation based on your submitted preferences and the apartment's available data. The AI request runs only after clicking the explanation button.
+Recommended apartment cards can generate a short Hebrew explanation based on the submitted preferences and the apartment data available in MongoDB. The explanation is requested only after the user clicks the match-explanation button.
 
-<a name="installation"/></a>
+### 3. Ask AI About This Apartment
 
-## Installation ⚙️
+Each apartment result card includes a separate question action. Users can choose a suggested question or type one custom question in Hebrew or English. Gemini answers one question at a time using only the selected apartment's stored data.
 
-Clone the repository and navigate to the project directory:
+The feature does not use conversation history, embeddings, a vector database, or external neighborhood knowledge. When the data does not contain an answer, the AI is instructed to say that the information is unavailable instead of guessing about elevators, balconies, parking, accessibility, safety, distances, or other unsupported attributes.
 
-bash
+## Installation
 
-```
+Requirements:
+
+- Node.js and npm.
+- Python 3.11 or newer.
+- MongoDB access.
+
+Clone the repository:
+
+```bash
 git clone https://github.com/pazgu/Apartment_matcher.git
 cd Apartment_matcher
 ```
 
-Run the setup script to install all dependencies and start the application:
+Install backend dependencies:
 
-**Python 3.11.X or greater is required**
-
-Before setting up the project, make sure you have the **.env** file with the **MONGO_URI** and the **JWT_SECRET**.
-
-bash
-
-```
-./setup.sh
+```bash
+cd backend/src
+npm install
 ```
 
-Note: Ensure you have npm, pip, and bash installed on your system.
+Install frontend dependencies from the `frontend` directory:
 
-<a name="usage"/></a>
-
-## Usage 🖥️
-
-- Open your browser and navigate to http://localhost:3000.
-
-- Explore apartments: Use the filter options to search for apartments to buy or rent.
-
-- Get recommendations: Fill out the form to receive personalized apartment recommendations.
-
-- Browse matches: Explore the top 20 apartment matches tailored to your preferences.
-
-### AI match explanations
-
-The explanation feature is available on recommended apartment cards only and runs after the user clicks the button. Configure these backend environment variables in `backend/src/.env`:
-
+```bash
+cd ../../frontend
+npm install
 ```
+
+Install Python dependencies:
+
+```bash
+cd ../backend/src
+python -m pip install -r requirements.txt
+```
+
+## Configuration
+
+Create `backend/src/.env` using the following variables. Never commit a real API key or database credential:
+
+```env
 MONGO_URI=your-mongodb-connection-string
+JWT_SECRET=your-jwt-secret
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
-<a name="technologies"/></a>
+The Gemini key is used only by the backend and is never exposed to the frontend.
 
-## Technologies Used 🛠️
+## Running the Application
 
-- **Frontend**: React
+Start the backend in one terminal:
 
-- **Backend**: Node.js, Express.js
+```bash
+cd backend/src
+npm start
+```
 
-- **Database**: MongoDB
+Start the frontend in another terminal:
 
-- **Machine Learning**: Python, scikit-learn, pandas, NumPy
+```bash
+cd frontend
+npm start
+```
 
-- **Data Scraping**: BeautifulSoup, requests
+Open `http://localhost:3000`. The backend listens on `http://localhost:5000`.
 
-- **Data Visualization**: Jupyter Notebooks
+## Using The Application
 
-- **Algorithms**: StandardScaler, KMeans, t-SNE, Euclidean distances
+1. Open the matching form.
+2. Optionally describe the desired apartment and select **Fill Preferences With AI**.
+3. Review or edit the populated fields.
+4. Submit the form to receive apartment recommendations.
+5. On a recommendation card, use the match explanation action or **Ask AI About This Apartment**.
+6. Choose a suggested question or enter a custom question, then submit it.
 
-<a name="ml"/></a>
+## AI Endpoints
 
-## How does the Machine Learning model work ❓
+The backend exposes these AI routes:
 
-The model uses clustering algorithms like KMeans and t-SNE to group similar apartments.
+```text
+POST /api/apartments/extract-preferences
+POST /api/apartments/:id/explain-match
+POST /api/apartments/:id/ask
+```
 
-When you submit your preferences, it's treated as a "new apartment," the model finds the cluster the user's prefernces in, and using Euclidean distances it finds the 20 closest (most similar) apartments in the cluster to the user's preferences.
+The apartment question endpoint accepts a question only; it retrieves the apartment by ID on the backend and does not trust a full apartment object sent by the browser.
 
-![<img src="backend/src/data/jupyter-notebooks/example_model.png" width="25" height="25"/>](backend/src/data/jupyter-notebooks/example_model.png)
+## Technologies
+
+- **Frontend:** React, React Router, Axios, rc-slider.
+- **Backend:** Node.js, Express.js, Mongoose.
+- **AI:** Google Gemini through `@google/generative-ai`.
+- **Database:** MongoDB.
+- **Machine learning:** Python, scikit-learn, pandas, NumPy.
+- **Data processing:** Jupyter notebooks and scraped apartment data.
+
+## Recommendation Pipeline
+
+The matching pipeline preprocesses apartment features with a saved scikit-learn transformer, combines them with the user's preferences, uses t-SNE and KMeans to identify a relevant cluster, and ranks apartments in that cluster by Euclidean similarity. The final result contains the top 20 recommendations.

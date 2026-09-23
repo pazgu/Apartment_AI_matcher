@@ -9,6 +9,7 @@ const {
   getApartmentByIdAll,
   explainApartmentMatch,
   extractApartmentPreferences,
+  askAboutApartment,
 } = require("../controllers/apartment.controller");
 
 router.get("/rent/:id", getApartmentByIdRent);
@@ -18,6 +19,7 @@ router.get("/rent", getAllRentalApartments);
 router.get("/sale", getAllSaleApartments);
 router.post("/match", postUserMatchApartmentsForm);
 router.post("/extract-preferences", extractApartmentPreferences);
+router.post("/:id/ask", askAboutApartment);
 router.post("/:id/explain-match", explainApartmentMatch);
 
 module.exports = router;

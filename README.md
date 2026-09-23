@@ -73,7 +73,7 @@ The explanation feature is available on recommended apartment cards only and run
 ```
 MONGO_URI=your-mongodb-connection-string
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 <a name="technologies"/></a>

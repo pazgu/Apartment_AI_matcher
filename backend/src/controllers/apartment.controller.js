@@ -9,6 +9,149 @@ function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+const preferenceTagKeys = [
+  "school",
+  "religious",
+  "secular",
+  "families",
+  "parks",
+  "light_trail",
+  "quiet_street",
+];
+
+function sanitizeExtractedPreferences(value, currentRentOrSale) {
+  if (!isPlainObject(value)) return null;
+
+  const rentOrSale =
+    value.rentOrSale === "rent" || value.rentOrSale === "sale"
+      ? value.rentOrSale
+      : undefined;
+  const effectiveRentOrSale = rentOrSale || currentRentOrSale;
+  const priceMinimum = effectiveRentOrSale === "rent" ? 500 : 10000;
+  const priceMaximum = effectiveRentOrSale === "rent" ? 50000 : 50000000;
+  const sanitized = {};
+
+  if (rentOrSale) sanitized.rentOrSale = rentOrSale;
+
+  const numericFields = [
+    "floor",
+    "beds",
+    "minPrice",
+    "maxPrice",
+    "minSize",
+    "maxSize",
+  ];
+  for (const field of numericFields) {
+    if (value[field] === undefined) continue;
+    const number = Number(value[field]);
+    if (!Number.isFinite(number)) continue;
+
+    const minimum =
+      field === "floor" || field === "beds"
+        ? 0
+        : field.includes("Price")
+          ? priceMinimum
+          : 0;
+    const maximum =
+      field === "floor"
+        ? 100
+        : field === "beds"
+          ? 10
+          : field.includes("Price")
+            ? priceMaximum
+            : 10000;
+    if (number >= minimum && number <= maximum) {
+      sanitized[field] = Number.isInteger(number) ? number : number;
+    }
+  }
+
+  if (isPlainObject(value.tags)) {
+    const tags = {};
+    for (const key of preferenceTagKeys) {
+      const number = Number(value.tags[key]);
+      if (Number.isInteger(number) && number >= 1 && number <= 5) {
+        tags[key] = number;
+      }
+    }
+    if (Object.keys(tags).length > 0) sanitized.tags = tags;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
+async function extractApartmentPreferences(req, res) {
+  const { text, rentOrSale } = req.body || {};
+  if (typeof text !== "string" || !text.trim()) {
+    return res
+      .status(400)
+      .json({ message: "Please describe your apartment preferences" });
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res
+      .status(503)
+      .json({ message: "AI preference extraction is not configured" });
+  }
+
+  try {
+    const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = client.getGenerativeModel({
+      model: "gemini-3.1-flash-lite",
+      systemInstruction:
+        "Extract apartment preferences from Hebrew or English text. Return JSON only. Supported fields are rentOrSale (exactly rent or sale), floor (0-100), beds (0-10), minPrice and maxPrice (numbers), minSize and maxSize (0-10000), and tags containing only school, religious, secular, families, parks, light_trail, quiet_street with integer ratings 1-5. Return a field only when clearly stated or safely mapped to an existing option. Do not guess. Ignore unsupported requests such as city, balcony, or transportation. Omit unspecified fields. Do not include explanations or any other keys.",
+    });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: text.trim() }] }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: "application/json",
+      },
+    });
+    const responseText = result.response.text().trim();
+    if (!responseText) {
+      return res.status(502).json({ message: "AI returned no preferences" });
+    }
+
+    const extracted = sanitizeExtractedPreferences(
+      JSON.parse(responseText),
+      rentOrSale === "rent" || rentOrSale === "sale" ? rentOrSale : "sale",
+    );
+    if (!extracted) {
+      return res
+        .status(422)
+        .json({ message: "No supported preferences were found" });
+    }
+    return res.status(200).json({ success: true, preferences: extracted });
+  } catch (error) {
+    console.error("Error extracting apartment preferences:", error);
+    const errorMessage = String(error?.message || "");
+    if (
+      /API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({ message: "AI preference extraction is not configured" });
+    }
+    if (
+      /429|rate limit|quota|temporarily unavailable|503/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({
+          message: "AI preference extraction is temporarily unavailable",
+        });
+    }
+    if (error instanceof SyntaxError) {
+      return res
+        .status(502)
+        .json({ message: "AI returned invalid preference data" });
+    }
+    return res
+      .status(502)
+      .json({ message: "Unable to extract apartment preferences" });
+  }
+}
+
 async function explainApartmentMatch(req, res) {
   const { id } = req.params;
   const { preferences, similarity_score } = req.body || {};
@@ -420,4 +563,5 @@ module.exports = {
   postUserMatchApartmentsForm,
   getApartmentByIdAll,
   explainApartmentMatch,
+  extractApartmentPreferences,
 };

@@ -123,6 +123,71 @@ POST /api/apartments/:id/ask
 
 The apartment question endpoint accepts a question only; it retrieves the apartment by ID on the backend and does not trust a full apartment object sent by the browser.
 
+## Render Deployment
+
+The repository includes a root-level `render.yaml` Blueprint for two Render services:
+
+- `apartment-ai-backend`: a Docker web service using `backend/src/Dockerfile`. The image contains Node.js, Python 3, the pinned ML dependencies, the matcher script, and the saved model/data files.
+- `apartment-ai-frontend`: a React static site built from `frontend` and published from `frontend/build`.
+
+The frontend is built with Create React App. Its backend origin is configured with the build-time variable `REACT_APP_API_URL`; local development falls back to `http://localhost:5000` when the variable is absent. The Blueprint includes the React Router rewrite from `/*` to `/index.html`.
+
+### Render Environment Variables
+
+Enter these values in Render. Use the actual secret values only in Render's environment settings, never in Git or this README:
+
+Backend web service:
+
+```text
+MONGO_URI=your-mongodb-atlas-connection-string
+JWT_SECRET=your-jwt-secret
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.1-flash-lite
+PYTHON_EXECUTABLE=python3
+CLIENT_URL=https://your-frontend.onrender.com
+```
+
+Frontend static site:
+
+```text
+REACT_APP_API_URL=https://your-backend.onrender.com
+```
+
+`PORT` is supplied by Render automatically. The backend defaults to port `5000` locally and listens on `0.0.0.0` for Render. The backend health check is `GET /health` and returns `{ "status": "ok" }` without calling MongoDB, Gemini, or Python.
+
+### Manual Render Setup
+
+1. Push this repository to GitHub without committing any `.env` files or secrets.
+2. In Render, choose **New > Blueprint** and select the repository and deployment branch.
+3. Review the two services from `render.yaml` and enter the backend secrets and MongoDB Atlas connection string.
+4. Deploy the backend first, then set the frontend `REACT_APP_API_URL` to the deployed backend URL and deploy the frontend.
+5. Set the backend `CLIENT_URL` to the deployed frontend URL. If the frontend URL changes, update this value and redeploy the backend.
+6. Confirm `https://your-backend.onrender.com/health` returns `{ "status": "ok" }`.
+
+MongoDB Atlas may need a Network Access rule allowing Render to connect. For a temporary course demonstration, `0.0.0.0/0` may be required when the free Render service has no stable outbound IP. This is a demo compromise: use a strong database password, grant the database user only the permissions this application needs, keep credentials only in Render environment variables, and restrict the rule later when stable egress is available.
+
+Render free services can sleep when idle, so the first request after inactivity may be slow while the service starts. No GitHub Actions or external deployment automation is required.
+
+### Local Development After Deployment Changes
+
+Create `backend/src/.env` and `frontend/.env` from their corresponding `.env.example` files, then run:
+
+```bash
+cd backend/src
+npm install
+npm run dev
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+The frontend uses `REACT_APP_API_URL=http://localhost:5000` locally, while the backend uses `CLIENT_URL=http://localhost:3000` and `PYTHON_EXECUTABLE` can be set to a local Python executable when needed.
+
 ## Technologies
 
 - **Frontend:** React, React Router, Axios, rc-slider.

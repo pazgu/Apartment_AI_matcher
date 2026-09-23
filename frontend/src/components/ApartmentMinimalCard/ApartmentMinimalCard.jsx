@@ -10,6 +10,11 @@ const ApartmentMinimalCard = ({ apartment, preferences }) => {
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [explanationError, setExplanationError] = useState("");
   const [explanationOpen, setExplanationOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askQuestion, setAskQuestion] = useState("");
+  const [askAnswer, setAskAnswer] = useState(null);
+  const [askLoading, setAskLoading] = useState(false);
+  const [askError, setAskError] = useState("");
   const {
     beds,
     floor,
@@ -58,6 +63,47 @@ const ApartmentMinimalCard = ({ apartment, preferences }) => {
       setExplanationError("לא ניתן להכין הסבר כרגע. נסו שוב מאוחר יותר.");
     } finally {
       setExplanationLoading(false);
+    }
+  };
+
+  const openAskModal = () => {
+    setAskQuestion("");
+    setAskAnswer(null);
+    setAskError("");
+    setAskOpen(true);
+  };
+
+  const closeAskModal = () => {
+    if (askLoading) return;
+    setAskOpen(false);
+    setAskQuestion("");
+    setAskAnswer(null);
+    setAskError("");
+  };
+
+  const handleAskSubmit = async (event) => {
+    event.preventDefault();
+    if (!askQuestion.trim()) {
+      setAskError("Please enter a question.");
+      return;
+    }
+
+    setAskLoading(true);
+    setAskAnswer(null);
+    setAskError("");
+    try {
+      const response = await axios.post(
+        `http://localhost:5000/api/apartments/${apartment.id}/ask`,
+        { question: askQuestion.trim() },
+      );
+      setAskAnswer(response.data);
+    } catch (error) {
+      setAskError(
+        error.response?.data?.message ||
+          "Unable to answer this question right now. Please try again.",
+      );
+    } finally {
+      setAskLoading(false);
     }
   };
 
@@ -120,6 +166,81 @@ const ApartmentMinimalCard = ({ apartment, preferences }) => {
               )}
             </div>
           )}
+        </div>
+      )}
+      <button
+        type="button"
+        className="apartment-ask-button"
+        onClick={openAskModal}
+      >
+        שאלו את ה־AI על הדירה
+      </button>
+      {askOpen && (
+        <div className="apartment-ask-overlay" role="presentation">
+          <div
+            className="apartment-ask-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`ask-apartment-title-${apartment.id}`}
+          >
+            <button
+              type="button"
+              className="apartment-ask-close"
+              onClick={closeAskModal}
+              disabled={askLoading}
+              aria-label="Close question dialog"
+            >
+              ×
+            </button>
+            <h3 id={`ask-apartment-title-${apartment.id}`}>
+              שאלו את ה־AI על {address || "הדירה"}
+            </h3>
+            <div className="apartment-ask-suggestions">
+              {[
+                "האם הדירה מתאימה למשפחה?",
+                "האם אפשר להסתדר כאן בלי רכב?",
+                "מה כדאי לבדוק לפני ביקור?",
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => setAskQuestion(suggestion)}
+                  disabled={askLoading}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+            <form onSubmit={handleAskSubmit}>
+              <label htmlFor={`ask-apartment-question-${apartment.id}`}>
+                השאלה שלכם
+              </label>
+              <textarea
+                id={`ask-apartment-question-${apartment.id}`}
+                value={askQuestion}
+                onChange={(event) => setAskQuestion(event.target.value)}
+                maxLength={300}
+                rows="3"
+                disabled={askLoading}
+              />
+              <button
+                type="submit"
+                className="apartment-ask-submit"
+                disabled={askLoading}
+              >
+                {askLoading ? "בודק..." : "שאלו"}
+              </button>
+            </form>
+            {askError && <p className="apartment-ask-error">{askError}</p>}
+            {askAnswer && (
+              <div className="apartment-ask-answer">
+                <p>{askAnswer.answer}</p>
+                {askAnswer.basedOn?.length > 0 && (
+                  <small>מבוסס על: {askAnswer.basedOn.join(", ")}</small>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

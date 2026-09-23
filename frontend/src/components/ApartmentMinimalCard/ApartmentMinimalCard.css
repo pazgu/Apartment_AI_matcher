@@ -26,3 +26,46 @@
   padding: 0;
   margin: 0;
 }
+
+.apartment-explanation {
+  padding: 0 0.75rem 1rem;
+}
+
+.apartment-explanation-button {
+  width: 100%;
+  padding: 0.55rem;
+  border: 1px solid #345995;
+  border-radius: 0.35rem;
+  background: white;
+  color: #345995;
+  cursor: pointer;
+}
+
+.apartment-explanation-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.apartment-explanation-content {
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+}
+
+.apartment-explanation-content small {
+  color: #666;
+}
+
+.apartment-explanation-content ul {
+  margin: 0.4rem 0;
+  padding-right: 1.2rem;
+}
+
+.apartment-explanation-content p,
+.apartment-explanation-error {
+  margin: 0.4rem 0 0;
+}
+
+.apartment-explanation-error {
+  color: #a33;
+  font-size: 0.85rem;
+}

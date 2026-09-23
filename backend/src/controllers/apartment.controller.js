@@ -3,6 +3,107 @@ const {
   RentalApartment,
   SaleApartment,
 } = require("../models/apartment.model.");
+const OpenAI = require("openai");
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+async function explainApartmentMatch(req, res) {
+  const { id } = req.params;
+  const { preferences, similarity_score } = req.body || {};
+
+  if (
+    !id ||
+    typeof id !== "string" ||
+    !isPlainObject(preferences) ||
+    typeof similarity_score !== "number" ||
+    !Number.isFinite(similarity_score)
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Valid apartment ID and preferences are required" });
+  }
+
+  try {
+    let apartment = await RentalApartment.findOne({ id });
+    if (!apartment) {
+      apartment = await SaleApartment.findOne({ id });
+    }
+    if (!apartment) {
+      return res.status(404).json({ message: "Apartment not found" });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res
+        .status(503)
+        .json({ message: "AI explanation service is not configured" });
+    }
+
+    const apartmentData = {
+      address: apartment.address,
+      deal_type: apartment.deal_type,
+      price: apartment.price,
+      size_m2: apartment.size_m2,
+      bedrooms: apartment.beds,
+      floor: apartment.floor,
+      similarity_score,
+      tags: (apartment.tags || [])
+        .slice(0, 20)
+        .map(({ tag_category, tag_value }) => ({
+          tag_category,
+          tag_value,
+        })),
+      insights: (apartment.insights || [])
+        .slice(0, 5)
+        .map(({ insight_category, insight_value }) => ({
+          insight_category,
+          insight_value,
+        })),
+    };
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const completion = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "אתה מסביר התאמת דירות בעברית. החזר JSON בלבד עם strengths (מערך של בדיוק 2 מחרוזות קצרות) ו-tradeoff (מחרוזת קצרה או null). השתמש רק בנתונים שסופקו. אל תמציא מידע על בטיחות, נסיעות, בתי ספר, מרחקים, איכות שכונה או מתקנים. אל תשתמש בשפה שיווקית מוגזמת. החזר tradeoff רק אם הוא נתמך ישירות בנתונים.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ apartment: apartmentData, preferences }),
+        },
+      ],
+    });
+
+    const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+    if (!Array.isArray(parsed.strengths) || parsed.strengths.length < 2) {
+      return res
+        .status(502)
+        .json({ message: "AI returned an invalid explanation" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      explanation: {
+        strengths: parsed.strengths.slice(0, 2).map(String),
+        tradeoff:
+          typeof parsed.tradeoff === "string" && parsed.tradeoff.trim()
+            ? parsed.tradeoff.trim()
+            : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error explaining apartment match:", error);
+    return res
+      .status(502)
+      .json({ message: "Unable to generate apartment explanation" });
+  }
+}
 
 // For Rental Apartments
 async function getAllRentalApartments(req, res) {
@@ -43,7 +144,7 @@ async function getApartmentByIdAll(req, res) {
   } catch (error) {
     console.log(
       "apartment.controller, getApartmentByIdAll. Error while getting apartment by ID",
-      error
+      error,
     );
     res.status(500).json({ message: "Error retrieving apartment" });
   }
@@ -117,7 +218,7 @@ async function getAllApartments(req, res, ApartmentModel) {
   } catch (error) {
     console.log(
       "apartment.controller, getAllApartments. Error while getting apartments",
-      error
+      error,
     );
     res.status(500).json({ message: "Error retrieving apartments" });
   }
@@ -137,7 +238,7 @@ async function getApartmentById(req, res, ApartmentModel) {
   } catch (error) {
     console.log(
       "apartment.controller, getApartmentById. Error while getting apartment by ID",
-      error
+      error,
     );
     res.status(500).json({ message: "Error retrieving apartment" });
   }
@@ -165,7 +266,15 @@ async function postUserMatchApartmentsForm(req, res) {
       tags,
     } = req.body;
 
-    const { families, light_trail, parks, quiet_street, religious, school, secular } = tags;
+    const {
+      families,
+      light_trail,
+      parks,
+      quiet_street,
+      religious,
+      school,
+      secular,
+    } = tags;
 
     // User preferences sent to the model
     const user_prefs = {
@@ -233,7 +342,7 @@ async function postUserMatchApartmentsForm(req, res) {
             }
 
             return null;
-          })
+          }),
         );
 
         // Filter out any null results (in case of apartments not found)
@@ -256,7 +365,6 @@ async function postUserMatchApartmentsForm(req, res) {
     pythonProcess.stderr.on("data", (data) => {
       console.error(`Error from Python script: ${data}`);
     });
-
   } catch (error) {
     console.error("Error in postUserMatchApartmentsForm:", error);
     res.status(500).json({
@@ -267,7 +375,6 @@ async function postUserMatchApartmentsForm(req, res) {
   }
 }
 
-
 module.exports = {
   getAllRentalApartments,
   getAllSaleApartments,
@@ -275,4 +382,5 @@ module.exports = {
   getApartmentByIdSale,
   postUserMatchApartmentsForm,
   getApartmentByIdAll,
+  explainApartmentMatch,
 };

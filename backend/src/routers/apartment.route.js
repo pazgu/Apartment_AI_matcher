@@ -7,6 +7,7 @@ const {
   getApartmentByIdSale,
   postUserMatchApartmentsForm,
   getApartmentByIdAll,
+  explainApartmentMatch,
 } = require("../controllers/apartment.controller");
 
 router.get("/rent/:id", getApartmentByIdRent);
@@ -15,5 +16,6 @@ router.get("/all/:id", getApartmentByIdAll);
 router.get("/rent", getAllRentalApartments);
 router.get("/sale", getAllSaleApartments);
 router.post("/match", postUserMatchApartmentsForm);
+router.post("/:id/explain-match", explainApartmentMatch);
 
 module.exports = router;

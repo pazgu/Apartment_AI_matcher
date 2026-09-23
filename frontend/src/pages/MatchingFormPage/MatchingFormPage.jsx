@@ -5,7 +5,6 @@ import "./MatchingFormPage.css";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-
 const Matching = () => {
   const navigate = useNavigate();
   // State for different form fields - each field is a number except the "rent or sale".
@@ -100,7 +99,7 @@ const Matching = () => {
     try {
       const response = await axios.post(
         "http://localhost:5000/api/apartments/match",
-        formData
+        formData,
       );
 
       const apartments = response.data.data;
@@ -108,7 +107,7 @@ const Matching = () => {
 
       // Navigate to the matching apartments page
       navigate("/matching_apartments", {
-        state: { apartments },
+        state: { apartments, preferences: formData },
       });
     } catch (error) {
       console.error("There was an error submitting the form:", error);
@@ -171,8 +170,8 @@ const Matching = () => {
             range
             value={priceRange}
             onChange={handlePriceRangeChange}
-            min={rentOrSale === "rent" ? 500 : 10000} 
-            max={rentOrSale === "rent" ? 50000 : 50000000} 
+            min={rentOrSale === "rent" ? 500 : 10000}
+            max={rentOrSale === "rent" ? 50000 : 50000000}
             step={100}
             reverse={true}
             required

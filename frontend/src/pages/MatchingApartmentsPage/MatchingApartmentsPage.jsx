@@ -5,6 +5,7 @@ import ApartmentMinimalCard from "../../components/ApartmentMinimalCard/Apartmen
 const MatchingFormApartments = () => {
   const location = useLocation();
   const apartments = location.state?.apartments || [];
+  const preferences = location.state?.preferences || {};
 
   return (
     <div className="apartments-page-container">
@@ -13,7 +14,11 @@ const MatchingFormApartments = () => {
       <div className="apartments-page-cards-wrapper">
         {apartments.length > 0 ? (
           apartments.map((apartment, index) => (
-            <ApartmentMinimalCard key={index} apartment={apartment} />
+            <ApartmentMinimalCard
+              key={index}
+              apartment={apartment}
+              preferences={preferences}
+            />
           ))
         ) : (
           <p>אין דירות תואמות בהתאם לפרטים שהזנת.</p>

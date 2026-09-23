@@ -103,8 +103,11 @@ async function explainApartmentMatch(req, res) {
     });
   } catch (error) {
     console.error("Error explaining apartment match:", error);
+    const errorMessage = String(error?.message || "");
+    const isConfigurationError =
+      /API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage);
     return res
-      .status(502)
+      .status(isConfigurationError ? 503 : 502)
       .json({ message: "Unable to generate apartment explanation" });
   }
 }

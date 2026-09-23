@@ -135,11 +135,9 @@ async function extractApartmentPreferences(req, res) {
     if (
       /429|rate limit|quota|temporarily unavailable|503/i.test(errorMessage)
     ) {
-      return res
-        .status(503)
-        .json({
-          message: "AI preference extraction is temporarily unavailable",
-        });
+      return res.status(503).json({
+        message: "AI preference extraction is temporarily unavailable",
+      });
     }
     if (error instanceof SyntaxError) {
       return res
@@ -202,13 +200,17 @@ async function askAboutApartment(req, res) {
   const { question } = req.body || {};
 
   if (typeof id !== "string" || !id.trim()) {
-    return res.status(400).json({ message: "A valid apartment ID is required" });
+    return res
+      .status(400)
+      .json({ message: "A valid apartment ID is required" });
   }
   if (typeof question !== "string" || !question.trim()) {
     return res.status(400).json({ message: "Please enter a question" });
   }
   if (question.trim().length > 300) {
-    return res.status(400).json({ message: "Question must be 300 characters or fewer" });
+    return res
+      .status(400)
+      .json({ message: "Question must be 300 characters or fewer" });
   }
 
   try {
@@ -220,7 +222,9 @@ async function askAboutApartment(req, res) {
       return res.status(404).json({ message: "Apartment not found" });
     }
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(503).json({ message: "AI question service is not configured" });
+      return res
+        .status(503)
+        .json({ message: "AI question service is not configured" });
     }
 
     const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -261,16 +265,28 @@ async function askAboutApartment(req, res) {
   } catch (error) {
     console.error("Error answering apartment question:", error);
     const errorMessage = String(error?.message || "");
-    if (/API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage)) {
-      return res.status(503).json({ message: "AI question service is not configured" });
+    if (
+      /API_KEY_INVALID|API key not valid|permission denied/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({ message: "AI question service is not configured" });
     }
-    if (/429|rate limit|quota|temporarily unavailable|503/i.test(errorMessage)) {
-      return res.status(503).json({ message: "AI question service is temporarily unavailable" });
+    if (
+      /429|rate limit|quota|temporarily unavailable|503/i.test(errorMessage)
+    ) {
+      return res
+        .status(503)
+        .json({ message: "AI question service is temporarily unavailable" });
     }
     if (error instanceof SyntaxError) {
-      return res.status(502).json({ message: "AI returned invalid answer data" });
+      return res
+        .status(502)
+        .json({ message: "AI returned invalid answer data" });
     }
-    return res.status(502).json({ message: "Unable to answer the apartment question" });
+    return res
+      .status(502)
+      .json({ message: "Unable to answer the apartment question" });
   }
 }
 

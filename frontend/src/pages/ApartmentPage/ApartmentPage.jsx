@@ -4,6 +4,7 @@ import ImagesCarousel from "../../components/ImagesCarousel/ImagesCarousel";
 import ScoreBar from "../../components/ScoreBar/ScoreBar";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../../api";
 
 const translations = {
   school: "קרבה לבתי ספר",
@@ -25,9 +26,7 @@ const ApartmentPage = () => {
     const fetchApartments = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/apartments/all/${id}`
-        );
+        const response = await axios.get(apiUrl(`/api/apartments/all/${id}`));
 
         setApartment(response.data);
       } catch (error) {

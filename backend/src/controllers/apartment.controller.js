@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const path = require("node:path");
 const {
   RentalApartment,
   SaleApartment,
@@ -533,14 +534,38 @@ async function getApartmentById(req, res, ApartmentModel) {
 }
 
 async function postUserMatchApartmentsForm(req, res) {
-  const apartment_df_path_to_rent = "data/for_rent_apartments (1).json";
-  const apartment_df_path_to_sale = "data/for_sale_apartments (1).json";
+  const dataDirectory = path.resolve(__dirname, "../data");
+  const mlDirectory = path.join(dataDirectory, "ML_modules");
+  const matcherScriptPath = path.join(
+    mlDirectory,
+    "ApartmentMatcherAlgorithm.py",
+  );
+  const apartment_df_path_to_rent = path.join(
+    dataDirectory,
+    "for_rent_apartments (1).json",
+  );
+  const apartment_df_path_to_sale = path.join(
+    dataDirectory,
+    "for_sale_apartments (1).json",
+  );
 
-  const scaler_path_to_rent = "data/ML_modules/for_rent_preprocessor.pkl";
-  const scaler_path_to_sale = "data/ML_modules/for_sale_preprocessor.pkl";
+  const scaler_path_to_rent = path.join(
+    mlDirectory,
+    "for_rent_preprocessor.pkl",
+  );
+  const scaler_path_to_sale = path.join(
+    mlDirectory,
+    "for_sale_preprocessor.pkl",
+  );
 
-  const model_path_to_rent = "data/ML_modules/for_rent_clustering_model.pkl";
-  const model_path_to_sale = "data/ML_modules/for_sale_clustering_model.pkl";
+  const model_path_to_rent = path.join(
+    mlDirectory,
+    "for_rent_clustering_model.pkl",
+  );
+  const model_path_to_sale = path.join(
+    mlDirectory,
+    "for_sale_clustering_model.pkl",
+  );
 
   try {
     const {
@@ -594,7 +619,7 @@ async function postUserMatchApartmentsForm(req, res) {
       ApartmentModel = RentalApartment;
       pythonProcess = spawn(pythonCommand, [
         ...pythonCommandArgs,
-        "data/ML_modules/ApartmentMatcherAlgorithm.py",
+        matcherScriptPath,
         apartment_df_path_to_rent,
         JSON.stringify(user_prefs),
         scaler_path_to_rent,
@@ -604,7 +629,7 @@ async function postUserMatchApartmentsForm(req, res) {
       ApartmentModel = SaleApartment;
       pythonProcess = spawn(pythonCommand, [
         ...pythonCommandArgs,
-        "data/ML_modules/ApartmentMatcherAlgorithm.py",
+        matcherScriptPath,
         apartment_df_path_to_sale,
         JSON.stringify(user_prefs),
         scaler_path_to_sale,
@@ -675,7 +700,6 @@ async function postUserMatchApartmentsForm(req, res) {
         res.status(500).json({
           success: false,
           message: "Failed to process matched apartments",
-          error: error.message,
         });
       }
     });
@@ -688,7 +712,6 @@ async function postUserMatchApartmentsForm(req, res) {
     res.status(500).json({
       success: false,
       message: "An error occurred while processing your request",
-      error: error.message,
     });
   }
 }

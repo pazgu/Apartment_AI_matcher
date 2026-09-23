@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import "./ApartmentMinimalCard.css";
+import { apiUrl } from "../../api";
 
 import { APARTMENT_PLACEHOLDER_IMAGE_URL } from "../../constants";
 
@@ -54,7 +55,7 @@ const ApartmentMinimalCard = ({ apartment, preferences }) => {
     setExplanationError("");
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/apartments/${apartment.id}/explain-match`,
+        apiUrl(`/api/apartments/${apartment.id}/explain-match`),
         { preferences, similarity_score },
       );
       setExplanation(response.data.explanation);
@@ -93,7 +94,7 @@ const ApartmentMinimalCard = ({ apartment, preferences }) => {
     setAskError("");
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/apartments/${apartment.id}/ask`,
+        apiUrl(`/api/apartments/${apartment.id}/ask`),
         { question: askQuestion.trim() },
       );
       setAskAnswer(response.data);

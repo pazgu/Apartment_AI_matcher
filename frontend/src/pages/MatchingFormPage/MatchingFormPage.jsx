@@ -4,6 +4,7 @@ import "rc-slider/assets/index.css";
 import "./MatchingFormPage.css";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../../api";
 
 const Matching = () => {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ const Matching = () => {
     setAiFillSuccess("");
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/apartments/extract-preferences",
+        apiUrl("/api/apartments/extract-preferences"),
         { text: naturalLanguageRequest, rentOrSale },
       );
       const extracted = response.data.preferences || {};
@@ -175,7 +176,7 @@ const Matching = () => {
     // Sending the form using Axios
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/apartments/match",
+        apiUrl("/api/apartments/match"),
         formData,
       );
 

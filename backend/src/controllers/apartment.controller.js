@@ -293,11 +293,19 @@ async function postUserMatchApartmentsForm(req, res) {
 
     // Choose model based on rent or sale
     let ApartmentModel;
+    const pythonCommand =
+      process.env.PYTHON_EXECUTABLE ||
+      (process.platform === "win32" ? "py" : "python3");
+    const pythonCommandArgs =
+      process.platform === "win32" && !process.env.PYTHON_EXECUTABLE
+        ? ["-3"]
+        : [];
     let pythonProcess;
 
     if (rentOrSale === "rent") {
       ApartmentModel = RentalApartment;
-      pythonProcess = spawn("python", [
+      pythonProcess = spawn(pythonCommand, [
+        ...pythonCommandArgs,
         "data/ML_modules/ApartmentMatcherAlgorithm.py",
         apartment_df_path_to_rent,
         JSON.stringify(user_prefs),
@@ -306,7 +314,8 @@ async function postUserMatchApartmentsForm(req, res) {
       ]);
     } else {
       ApartmentModel = SaleApartment;
-      pythonProcess = spawn("python", [
+      pythonProcess = spawn(pythonCommand, [
+        ...pythonCommandArgs,
         "data/ML_modules/ApartmentMatcherAlgorithm.py",
         apartment_df_path_to_sale,
         JSON.stringify(user_prefs),
@@ -322,7 +331,28 @@ async function postUserMatchApartmentsForm(req, res) {
       result += data.toString();
     });
 
+    pythonProcess.on("error", (error) => {
+      console.error("Unable to start Python matcher:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message:
+            "Python is not installed or is not configured. Set PYTHON_EXECUTABLE to a Python 3 executable.",
+        });
+      }
+    });
+
     pythonProcess.on("close", async (code) => {
+      if (res.headersSent) return;
+
+      if (code !== 0 || !result.trim()) {
+        console.error(`Python matcher exited with code ${code}`);
+        return res.status(500).json({
+          success: false,
+          message: "The apartment matching process failed",
+        });
+      }
+
       try {
         const matchedApartments = JSON.parse(result.trim());
 

@@ -3,7 +3,7 @@ const {
   RentalApartment,
   SaleApartment,
 } = require("../models/apartment.model.");
-const OpenAI = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -34,7 +34,7 @@ async function explainApartmentMatch(req, res) {
       return res.status(404).json({ message: "Apartment not found" });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return res
         .status(503)
         .json({ message: "AI explanation service is not configured" });
@@ -62,25 +62,29 @@ async function explainApartmentMatch(req, res) {
         })),
     };
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const completion = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "אתה מסביר התאמת דירות בעברית. החזר JSON בלבד עם strengths (מערך של בדיוק 2 מחרוזות קצרות) ו-tradeoff (מחרוזת קצרה או null). השתמש רק בנתונים שסופקו. אל תמציא מידע על בטיחות, נסיעות, בתי ספר, מרחקים, איכות שכונה או מתקנים. אל תשתמש בשפה שיווקית מוגזמת. החזר tradeoff רק אם הוא נתמך ישירות בנתונים.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({ apartment: apartmentData, preferences }),
-        },
-      ],
+    const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = client.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      systemInstruction:
+        "אתה מסביר התאמת דירות בעברית. החזר JSON בלבד עם strengths (מערך של בדיוק 2 מחרוזות קצרות) ו-tradeoff (מחרוזת קצרה או null). השתמש רק בנתונים שסופקו. אל תמציא מידע על בטיחות, נסיעות, בתי ספר, מרחקים, איכות שכונה או מתקנים. אל תשתמש בשפה שיווקית מוגזמת. החזר tradeoff רק אם הוא נתמך ישירות בנתונים.",
     });
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: JSON.stringify({ apartment: apartmentData, preferences }) },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const parsed = JSON.parse(result.response.text() || "{}");
     if (!Array.isArray(parsed.strengths) || parsed.strengths.length < 2) {
       return res
         .status(502)

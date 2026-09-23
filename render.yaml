@@ -21,8 +21,9 @@ services:
       - key: CLIENT_URL
         sync: false
 
-  - type: static_site
+  - type: web
     name: apartment-ai-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: ./build

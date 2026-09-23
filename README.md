@@ -2,6 +2,9 @@
 
 Apartment AI Matcher helps users find apartments for rent or sale, compare recommendations, and ask focused questions about individual listings. It combines a React interface, an Express/MongoDB backend, and a Python recommendation pipeline.
 
+
+![<img src="frontend/src/assets/IdeaImg.JPG" width="25" height="25"/>](frontend/src/assets/IdeaImg.JPG)
+
 ## Highlights
 
 - Search and browse apartment listings.

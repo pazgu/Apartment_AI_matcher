@@ -6,3 +6,7 @@ __pycache__/
 *.pyc
 build/
 dist/
+coverage/
+*.log
+nohup.out
+.DS_Store

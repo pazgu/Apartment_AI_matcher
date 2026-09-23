@@ -4,6 +4,7 @@ import ApartmentMinimalCard from "../../components/ApartmentMinimalCard/Apartmen
 import "./ApartmentsPage.css";
 import FilterBar from "../../components/FilterBar/FilterBar";
 import Pagination from "../../components/Pagination/Pagination";
+import { apiUrl } from "../../api";
 
 const ApartmentsPage = ({ title, endpoint }) => {
   const [apartments, setApartments] = useState([]);
@@ -23,14 +24,16 @@ const ApartmentsPage = ({ title, endpoint }) => {
       try {
         setLoading(true);
         const response = await axios.get(
-          `http://localhost:5000/api/apartments/${endpoint}?page=${currentPage}&limit=${itemsPerPage}`,
+          apiUrl(
+            `/api/apartments/${endpoint}?page=${currentPage}&limit=${itemsPerPage}`,
+          ),
           {
             params: {
               beds: filters.rooms,
               size_m2: filters.size,
               price: filters.price,
             },
-          }
+          },
         );
         setApartments(response.data.apartments);
         setTotalPages(response.data.pagination.totalPages);

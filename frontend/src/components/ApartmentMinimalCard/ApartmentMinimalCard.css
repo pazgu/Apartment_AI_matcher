@@ -69,3 +69,122 @@
   color: #a33;
   font-size: 0.85rem;
 }
+
+.apartment-ask-button {
+  width: calc(100% - 1.5rem);
+  margin: 0 0.75rem 1rem;
+  padding: 0.55rem;
+  border: 1px solid #0787a8;
+  border-radius: 0.35rem;
+  background: #0787a8;
+  color: white;
+  cursor: pointer;
+}
+
+.apartment-ask-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.apartment-ask-modal {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: white;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.apartment-ask-modal h3 {
+  margin: 0 2rem 1rem 0;
+  font-size: 1.1rem;
+}
+
+.apartment-ask-close {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #555;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.apartment-ask-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.apartment-ask-suggestions button {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 0.35rem;
+  background: #f7f7f7;
+  color: #333;
+  cursor: pointer;
+}
+
+.apartment-ask-modal form label {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.apartment-ask-modal textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 0.35rem;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.apartment-ask-submit {
+  margin-top: 0.65rem;
+  padding: 0.5rem 1.25rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: #345995;
+  color: white;
+  cursor: pointer;
+}
+
+.apartment-ask-close:disabled,
+.apartment-ask-suggestions button:disabled,
+.apartment-ask-submit:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.apartment-ask-error {
+  margin: 0.75rem 0 0;
+  color: #a33;
+}
+
+.apartment-ask-answer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #ddd;
+}
+
+.apartment-ask-answer p {
+  margin: 0;
+}
+
+.apartment-ask-answer small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #666;
+}

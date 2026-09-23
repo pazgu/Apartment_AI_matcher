@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/build
+/dist
 /.pnp
 .pnp.js
 
@@ -17,6 +19,11 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
 
 npm-debug.log*
 yarn-debug.log*

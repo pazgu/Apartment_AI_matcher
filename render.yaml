@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: apartment-ai-backend
+    runtime: docker
+    rootDir: backend/src
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: PYTHON_EXECUTABLE
+        value: python3
+      - key: CLIENT_URL
+        sync: false
+
+  - type: web
+    name: apartment-ai-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

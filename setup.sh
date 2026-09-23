@@ -40,12 +40,12 @@ npm install
 
 # Navigate to frontend and install dependencies
 echo "Installing frontend dependencies..."
-cd ../../frontend/src || exit
+cd ../../frontend || exit
 npm install
 
 # Navigate back to backend and install Python dependencies
 echo "Installing Python dependencies..."
-cd ../../backend/src || exit
+cd ../backend/src || exit
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
@@ -58,7 +58,7 @@ cd ../../backend/src || exit
 nohup npm start &
 
 # Start frontend
-cd ../../frontend/src || exit
+cd ../../frontend || exit
 nohup npm start &
 
 echo "Backend and frontend are now running."
